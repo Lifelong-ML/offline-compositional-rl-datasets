@@ -15,7 +15,22 @@ Since the tasks included in the benchmark are of varying difficulty, we provide 
 
 ## Running the code
 
-To reproduce our experiments, we provide a training and evaluation file for running d3rlpy with our datasets and network architecture. Before you start, make sure to correctly set the dataset and datasplit paths in both d3rl_runner.py and d3rl_eval.py. To train a model, navigate to off_comp_rl and exectute
+To reproduce our experiments, we provide a training and evaluation file for running d3rlpy with our datasets and network architecture. Before you start, make sure to correctly set the dataset and datasplit paths in both d3rl_runner.py and d3rl_eval.py. Note that, these paths expect a pointer to a folder that has the following structure.
+
+├ root_data  
+│   ├ expert  
+│   │   ├ IIWA_Box_None_Push  
+│   │   ├ ...  
+│   ├ medium  
+│   │   ├ ...  
+│   ├ random  
+│   │   ├ ...  
+│   ├ medium-replay-subsampled  
+│   │   ├ ...  
+
+The data you can download on dryad is split by robot arm so you have to recreate the above folder structure by moving the different robot arm folders into a single folder.
+
+To train a model, navigate to off_comp_rl and exectute
 
 ```python
 python d3rl_runner.py --use-task-list-path
