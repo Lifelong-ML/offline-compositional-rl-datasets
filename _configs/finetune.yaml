@@ -1,0 +1,14 @@
+defaults:
+    - _self_
+
+base_path: _offline_training
+dataset_type: expert # Options: expert, medium, medium-random-subsampled, random, sac
+split: default # Options: default, compositional, holdout
+algo: iql
+seed: 0
+update_start_step: 20000
+n_steps: 500000
+
+hydra:
+  run:
+    dir: ./_finetune_training/${dataset_type}/${split}/${algo}/${update_start_step}/${seed}

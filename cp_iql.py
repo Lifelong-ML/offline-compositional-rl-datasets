@@ -1,14 +1,14 @@
 from typing import Optional, Sequence
-import torch
-from torch import nn
 import numpy as np
 
+import torch
+from torch import nn
+
 from d3rlpy.models.encoders import EncoderFactory, VectorEncoderFactory
-from d3rlpy.models.torch.encoders import Encoder, _VectorEncoder, VectorEncoder
+from d3rlpy.models.torch.encoders import Encoder, _VectorEncoder
 from d3rlpy.algos.iql import IQL
 from d3rlpy.algos.torch.iql_impl import IQLImpl
 
-from d3rlpy.algos.torch.ddpg_impl import DDPGBaseImpl
 from d3rlpy.models.torch.policies import NormalPolicy
 from d3rlpy.models.q_functions import MeanQFunctionFactory
 from d3rlpy.models.torch import (
@@ -41,52 +41,6 @@ def fanin_init(tensor):
         raise Exception("Shape must be have dimension at least 2.")
     bound = 1.0 / np.sqrt(fan_in)
     return tensor.data.uniform_(-bound, bound)
-
-
-class LayerNorm(nn.Module):
-    """Layer normalization module."""
-
-    def __init__(
-        self, features: int, center: bool = True, scale: bool = False, eps: float = 1e-6
-    ):
-        """Initialize the layer normalization module.
-
-        Args:
-            features (int): Number of features.
-            center (bool, optional): Whether to center the data. Defaults to True.
-            scale (bool, optional): Whether to scale the data. Defaults to False.
-            eps (float, optional): Epsilon value for numerical stability. Defaults to 1e-6.
-        """
-        super().__init__()
-        self.center = center
-        self.scale = scale
-        self.eps = eps
-        if self.scale:
-            self.scale_param = nn.Parameter(torch.ones(features))
-        else:
-            self.scale_param = None
-        if self.center:
-            self.center_param = nn.Parameter(torch.zeros(features))
-        else:
-            self.center_param = None
-
-    def forward(self, x: torch.Tensor):
-        """Execute a forward pass of the module.
-
-        Args:
-            x (torch.Tensor): Input tensor.
-
-        Returns:
-            torch.Tensor: Output tensor.
-        """
-        mean = x.mean(-1, keepdim=True)
-        std = x.std(-1, keepdim=True)
-        output = (x - mean) / (std + self.eps)
-        if self.scale:
-            output = output * self.scale_param
-        if self.center:
-            output = output + self.center_param
-        return output
 
 
 class CompositionalMlp(nn.Module):
@@ -187,7 +141,7 @@ class CompositionalMlp(nn.Module):
                             layer_norm_this = None
 
                         if layer_norm_this is not None:
-                            new_layer = [fc, LayerNorm(sizes[j][i + 1]), act()]
+                            new_layer = [fc, nn.LayerNorm(sizes[j][i + 1]), act()]
                         else:
                             new_layer = [fc, act()]
 
@@ -306,8 +260,6 @@ class _CompositionalEncoder(_VectorEncoder):  # type: ignore
             input_size = len(module_inputs[j])
             sizes[j] = [input_size] + list(sizes[j])
             if j in graph_structure[-1]:
-                # print([action_dim + (action_dim if std is None else 0)])
-                # sizes[j] = sizes[j] + [action_dim + (action_dim if std is None else 0)] to be added and remove the line below
                 sizes[j] = sizes[j] + [action_dim]
         self._feature_size = sizes[-1][-1]
 
@@ -419,7 +371,6 @@ class CompositionalIQLImpl(IQLImpl):
             *args,
             **kwargs,
         )
-        self._q_func_factory = MeanQFunctionFactory(share_encoder=True)
 
     def _build_actor(self) -> None:
         """Build actor network using the compositional encoder."""

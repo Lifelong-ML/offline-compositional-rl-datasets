@@ -1,0 +1,22 @@
+defaults:
+    - _self_
+
+exp: full
+
+dataset:
+  dir: "/mnt/kostas-graid/datasets/CompoSuite-offline" # TO SET
+  task_list_path: "_train_test_splits"
+  split: default # Options: default, compositional, holdout
+  type: expert # Options: expert, medium, medium-random-subsampled, random, sac
+  holdout_elem: None # Only needs to be set when split=holdout
+  seed: 0
+  partial:
+    use: False
+    remove_elems: ["IIWA"]
+    n_tasks: 64
+
+algo: bc
+
+hydra:
+  run:
+    dir: ./_offline_training/${dataset.type}/${dataset.split}/${exp}/${algo}//${dataset.seed}

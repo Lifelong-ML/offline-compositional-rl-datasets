@@ -11,7 +11,13 @@ Since the tasks included in the benchmark are of varying difficulty, we provide 
 
 ## Installation
 
+    git clone https://github.com/Lifelong-ML/CompoSuite.git
+    cd CompoSuite 
+    pip install -e .
+    cd ..
+    
     pip install -r requirements.txt
+    pip install d3rlpy==1.1.1
 
 ## Running the code
 

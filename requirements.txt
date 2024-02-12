@@ -1,0 +1,4 @@
+composuite @ git+https://github.com/Lifelong-ML/CompoSuite.git
+Cython==0.29.37
+hydra-core==1.3.2
+termcolor==2.4.0
