@@ -98,11 +98,11 @@ def dictlist_to_flatlists(dictlist):
     for key in ["observations", "actions", "rewards", "terminals", "timeouts"]:
         assert len(dictlist) == len(locals()[key]), f"Length mismatch for {key}"
 
-    observations = np.concatenate(observations, axis=0)
-    actions = np.concatenate(actions, axis=0)
-    rewards = np.concatenate(rewards, axis=0)
-    terminals = np.concatenate(terminals, axis=0)
-    timeouts = np.concatenate(timeouts, axis=0)
+    observations = np.concatenate(observations, axis=0, dtype=np.float32)
+    actions = np.concatenate(actions, axis=0, dtype=np.float32)
+    rewards = np.concatenate(rewards, axis=0, dtype=np.float32)
+    terminals = np.concatenate(terminals, axis=0, dtype=np.uint8)
+    timeouts = np.concatenate(timeouts, axis=0, dtype=np.uint8)
 
     assert (
         len(observations)
@@ -194,6 +194,8 @@ def main(cfg):
         cfg.dataset.type,
     )
     dataset = dictlist_to_flatlists(dataset_list)
+    num_tasks = len(dataset_list)
+    del dataset_list
 
     mdp_dataset = d3rlpy.dataset.MDPDataset(
         observations=dataset[0],
@@ -205,7 +207,7 @@ def main(cfg):
 
     run_kwargs = {
         "trainer_kwargs": {
-            "batch_size": len(dataset_list) * 256,
+            "batch_size": num_tasks * 256,
         },
         "fit_kwargs": {
             "save_interval": 10,
