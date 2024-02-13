@@ -10,8 +10,8 @@ import d3rlpy
 import hydra
 from hydra.utils import get_original_cwd
 
-from env_utils import get_task_list, get_partial_task_list
-from cp_iql import CompositionalIQL, CompositionalEncoderFactory
+from utils.data_utils import get_task_list, get_partial_task_list
+from algos.cp_iql import CompositionalIQL, create_cp_encoderfactory
 
 from torch.cuda import is_available as cuda_available
 
@@ -116,46 +116,6 @@ def dictlist_to_flatlists(dictlist):
     assert actions.shape[1] == 8, "Action shape mismatch"
 
     return observations, actions, rewards, terminals, timeouts
-
-
-def create_cp_encoderfactory():
-    obs_dim = 93
-    act_dim = 8
-    # fmt: off
-    observation_positions = {'object-state': np.array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13]), 'obstacle-state': np.array([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]), 'goal-state': np.array([28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]), 'object_id': np.array([45, 46, 47, 48]), 'robot_id': np.array([49, 50, 51, 52]), 'obstacle_id': np.array([53, 54, 55, 56]), 'subtask_id': np.array([57, 58, 59, 60]), 'robot0_proprio-state': np.array([61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
-       78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92])}
-    # fmt: on
-
-    sizes = ((32,), (32, 32), (64, 64, 64), (64, 64, 64))
-    module_names = ["obstacle_id", "object_id", "subtask_id", "robot_id"]
-    module_input_names = [
-        "obstacle-state",
-        "object-state",
-        "goal-state",
-        "robot0_proprio-state",
-    ]
-    module_assignment_positions = [observation_positions[key] for key in module_names]
-    interface_depths = [-1, 1, 2, 1]
-    graph_structure = [[0], [1, 2], [3]]
-    num_modules = [len(onehot_pos) for onehot_pos in module_assignment_positions]
-    module_inputs = [observation_positions[key] for key in module_input_names]
-
-    encoder_kwargs = {
-        "sizes": sizes,
-        "obs_dim": obs_dim,
-        "action_dim": act_dim,
-        "num_modules": num_modules,
-        "module_assignment_positions": module_assignment_positions,
-        "module_inputs": module_inputs,
-        "interface_depths": interface_depths,
-        "graph_structure": graph_structure,
-    }
-
-    fac = CompositionalEncoderFactory(
-        encoder_kwargs,
-    )
-
-    return fac
 
 
 def train_algo(exp_name, dataset, algo, run_kwargs):

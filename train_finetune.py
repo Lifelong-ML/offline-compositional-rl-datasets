@@ -10,7 +10,8 @@ import omegaconf
 from robosuite import make
 import torch
 
-from env_utils import get_task_list, get_partial_task_list, CompoSuiteGymnasiumWrapper
+from utils.data_utils import get_task_list, get_partial_task_list
+from utils.env_utils import CompoSuiteGymnasiumWrapper
 
 # fmt: off
 import logging

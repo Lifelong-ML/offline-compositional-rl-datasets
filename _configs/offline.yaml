@@ -4,7 +4,7 @@ defaults:
 exp: full
 
 dataset:
-  dir: "/mnt/kostas-graid/datasets/CompoSuite-offline" # TO SET
+  dir: "/data/CompoSuite-offline" # TO SET
   task_list_path: "_train_test_splits"
   split: default # Options: default, compositional, holdout
   type: expert # Options: expert, medium, medium-random-subsampled, random, sac
