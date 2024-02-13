@@ -164,3 +164,6 @@ _sac_models
 _offline_training
 _finetune_training
 _data
+
+# sub-packages
+CompoSuite
