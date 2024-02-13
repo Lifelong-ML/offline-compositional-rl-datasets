@@ -25,94 +25,38 @@ DEVICE = "cuda:0" if cuda_available() else "cpu"
 
 
 def get_datasets(base_path, task_list, dataset_type):
-    def get_keys(h5file):
-        keys = []
+    num_tasks = len(task_list)
 
-        def visitor(name, item):
-            if isinstance(item, h5py.Dataset):
-                keys.append(name)
+    # preallocate memory
+    observations = np.zeros((num_tasks * 1000000, 93), dtype=np.float32)
+    actions = np.zeros((num_tasks * 1000000, 8), dtype=np.float32)
+    rewards = np.zeros((num_tasks * 1000000,), dtype=np.float32)
+    terminals = np.zeros((num_tasks * 1000000,), dtype=np.uint8)
+    timeouts = np.zeros((num_tasks * 1000000,), dtype=np.uint8)
 
-        h5file.visititems(visitor)
-        return keys
-
-    dataset_list = []
-    for task in tqdm(task_list, desc="Load task datafiles"):
+    for i, task in enumerate(tqdm(task_list, desc="Load task datafiles")):
         robot, obj, obst, subtask = task
         h5path = os.path.join(
             base_path, dataset_type, f"{robot}_{obj}_{obst}_{subtask}", "data.hdf5"
         )
 
-        data_dict = {}
         with h5py.File(h5path, "r") as dataset_file:
-            for k in get_keys(dataset_file):
-                try:  # first try loading as an array
-                    data_dict[k] = dataset_file[k][:]
-                except ValueError as e:  # try loading as a scalar
-                    data_dict[k] = dataset_file[k][()]
+            for key in [
+                "observations",
+                "actions",
+                "rewards",
+                "terminals",
+                "timeouts",
+            ]:
+                assert key in dataset_file, "Dataset is missing key %s" % key
 
-        for key in [
-            "observations",
-            "actions",
-            "rewards",
-            "terminals",
-            "timeouts",
-        ]:
-            assert key in data_dict, "Dataset is missing key %s" % key
-
-        dataset_list.append(data_dict)
-
-    dataset_list = np.array(dataset_list)
-    return dataset_list
-
-
-def dictlist_to_flatlists(dictlist):
-    observations = []
-    actions = []
-    rewards = []
-    terminals = []
-    timeouts = []
-
-    for data_dict in dictlist:
-        observations.append(data_dict["observations"])
-        actions.append(data_dict["actions"])
-        rewards.append(data_dict["rewards"])
-
-        _term = data_dict["terminals"]
-        _timeo = data_dict["timeouts"]
-        # overwrite _timeo to be 0 if where _term is True
-        previous_timeout_count = np.sum(data_dict["timeouts"])
-        logger.info(f"Terminal count: {np.sum(_term)}")
-        logger.info(f"Previous timeout count: {previous_timeout_count}")
-
-        # This makes sure that no timeouts happen in terminal states
-        # required for d3rlpy
-        _timeo[_term.astype(bool)] = 0
-        logger.info(f"New timeout count: {np.sum(_timeo)}")
-        logger.info(
-            f"Overwrote {np.sum(_timeo) - previous_timeout_count} timeouts to 0."
-        )
-
-        terminals.append(_term)
-        timeouts.append(_timeo)
-
-    for key in ["observations", "actions", "rewards", "terminals", "timeouts"]:
-        assert len(dictlist) == len(locals()[key]), f"Length mismatch for {key}"
-
-    observations = np.concatenate(observations, axis=0, dtype=np.float32)
-    actions = np.concatenate(actions, axis=0, dtype=np.float32)
-    rewards = np.concatenate(rewards, axis=0, dtype=np.float32)
-    terminals = np.concatenate(terminals, axis=0, dtype=np.uint8)
-    timeouts = np.concatenate(timeouts, axis=0, dtype=np.uint8)
-
-    assert (
-        len(observations)
-        == len(actions)
-        == len(rewards)
-        == len(terminals)
-        == len(timeouts)
-    ), "Length mismatch"
-    assert observations.shape[1] == 93, "Observation shape mismatch"
-    assert actions.shape[1] == 8, "Action shape mismatch"
+            observations[i * 1000000 : (i + 1) * 1000000] = dataset_file[
+                "observations"
+            ][:]
+            actions[i * 1000000 : (i + 1) * 1000000] = dataset_file["actions"][:]
+            rewards[i * 1000000 : (i + 1) * 1000000] = dataset_file["rewards"][:]
+            terminals[i * 1000000 : (i + 1) * 1000000] = dataset_file["terminals"][:]
+            timeouts[i * 1000000 : (i + 1) * 1000000] = dataset_file["timeouts"][:]
 
     return observations, actions, rewards, terminals, timeouts
 
@@ -181,6 +125,7 @@ def main(cfg):
         )
     logger.info(f"Training on {len(task_list)} tasks")
     logger.info(f"Task list contains these elements: {np.unique}")
+    num_tasks = len(task_list)
 
     # check if data path is absolute, else use get_original_cwd()
     data_path = (
@@ -188,21 +133,18 @@ def main(cfg):
         if os.path.isabs(cfg.dataset.dir)
         else os.path.join(get_original_cwd(), cfg.dataset.dir)
     )
-    dataset_list = get_datasets(
+    observations, actions, rewards, terminals, timeouts = get_datasets(
         data_path,
         task_list,
         cfg.dataset.type,
     )
-    dataset = dictlist_to_flatlists(dataset_list)
-    num_tasks = len(dataset_list)
-    del dataset_list
 
     mdp_dataset = d3rlpy.dataset.MDPDataset(
-        observations=dataset[0],
-        actions=dataset[1],
-        rewards=dataset[2],
-        terminals=dataset[3],
-        episode_terminals=dataset[4],
+        observations=observations,
+        actions=actions,
+        rewards=rewards,
+        terminals=terminals,
+        episode_terminals=np.logical_or(terminals, timeouts),
     )
 
     run_kwargs = {
@@ -218,12 +160,12 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "actor_encoder_factory"
         ] = create_cp_encoderfactory()
-        run_kwargs["trainer_kwargs"]["critic_encoder_factory"] = (
-            create_cp_encoderfactory(with_action=True, output_dim=1)
-        )
-        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = (
-            create_cp_encoderfactory(with_action=False, output_dim=1)
-        )
+        run_kwargs["trainer_kwargs"][
+            "critic_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
+        run_kwargs["trainer_kwargs"][
+            "value_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
     train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs)
