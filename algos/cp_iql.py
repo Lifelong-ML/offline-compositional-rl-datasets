@@ -254,9 +254,9 @@ class _CompositionalEncoder(_VectorEncoder):  # type: ignore
             observation_shape,
             hidden_units=None,
             use_batch_norm=False,
-            dropout_rate= None,
-            use_dense= False,
-            activation= nn.ReLU(),
+            dropout_rate=None,
+            use_dense=False,
+            activation=nn.ReLU(),
         )
 
         self._observation_shape = observation_shape
@@ -308,6 +308,7 @@ class CompositionalEncoder(_CompositionalEncoder, Encoder):
             torch.Tensor: Output tensor.
         """
         return self._fc_encode(x)
+
 
 class CompositionalEncoderWithAction(_CompositionalEncoder, EncoderWithAction):
     def forward(self, x: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
@@ -371,7 +372,7 @@ class CompositionalIQLImpl(IQLImpl, DDPGBaseImpl):
     _max_weight: float
     _value_encoder_factory: EncoderFactory
     _value_func: Optional[ValueFunction]
-    
+
     def __init__(
         self,
         observation_shape: Sequence[int],
@@ -394,7 +395,8 @@ class CompositionalIQLImpl(IQLImpl, DDPGBaseImpl):
         action_scaler: Optional[ActionScaler],
         reward_scaler: Optional[RewardScaler],
     ):
-        DDPGBaseImpl.__init__(self,
+        DDPGBaseImpl.__init__(
+            self,
             observation_shape=observation_shape,
             action_size=action_size,
             actor_learning_rate=actor_learning_rate,
@@ -434,6 +436,7 @@ class CompositionalIQLImpl(IQLImpl, DDPGBaseImpl):
         self._value_func = create_compositional_value_function(
             self._observation_shape, self._value_encoder_factory
         )
+
 
 def create_compositional_value_function(
     observation_shape: Sequence[int], encoder_factory: EncoderFactory
@@ -500,7 +503,9 @@ class CompositionalMeanQFunctionFactory(MeanQFunctionFactory):
         encoder: Encoder,
         action_size: int,
     ):
-        raise NotImplementedError("CompositionalMeanQFunctionFactory does not support discrete action spaces")
+        raise NotImplementedError(
+            "CompositionalMeanQFunctionFactory does not support discrete action spaces"
+        )
 
     def create_continuous(
         self,
@@ -541,7 +546,7 @@ class CompositionalEncoderFactory(VectorEncoderFactory):
             observation_shape=observation_shape,
             action_size=action_size,
             discrete_action=discrete_action,
-        )           
+        )
 
 
 def create_cp_encoderfactory(with_action=False, output_dim=None):

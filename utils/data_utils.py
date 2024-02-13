@@ -51,7 +51,9 @@ def load_multiple_datasets(base_path, dataset_type, robots, objs, obsts, tasks):
     for k in KEYS:
         data_dict[k] = []
 
-    for robot, obj, obst, task in tqdm(zip(robots, objs, obsts, tasks), desc="Loading Data"):
+    for robot, obj, obst, task in tqdm(
+        zip(robots, objs, obsts, tasks), desc="Loading Data"
+    ):
         dataset = load_single_dataset(base_path, dataset_type, robot, obj, obst, task)
         for k in KEYS:
             data_dict[k].append(dataset[k])

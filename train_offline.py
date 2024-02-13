@@ -150,9 +150,6 @@ def train_algo(exp_name, dataset, algo, run_kwargs):
         eval_episodes=dataset,
         **run_kwargs["fit_kwargs"],
     )
-    print(trainer._impl._policy)
-    print(vars(trainer._impl))
-    
 
 
 @hydra.main(config_path="_configs", config_name="offline")
@@ -223,9 +220,9 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "critic_encoder_factory"
         ] = create_cp_encoderfactory(with_action=True, output_dim=1)
-        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = create_cp_encoderfactory(
-            with_action=False, output_dim=1
-        )
+        run_kwargs["trainer_kwargs"][
+            "value_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
     train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs)

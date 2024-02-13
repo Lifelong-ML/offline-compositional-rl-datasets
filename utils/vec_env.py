@@ -6,7 +6,18 @@
 import inspect
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 import cloudpickle
 import gym
@@ -39,7 +50,12 @@ class VecEnv(ABC):
 
     metadata = {"render.modes": ["human", "rgb_array"]}
 
-    def __init__(self, num_envs: int, observation_space: gym.spaces.Space, action_space: gym.spaces.Space):
+    def __init__(
+        self,
+        num_envs: int,
+        observation_space: gym.spaces.Space,
+        action_space: gym.spaces.Space,
+    ):
         self.num_envs = num_envs
         self.observation_space = observation_space
         self.action_space = action_space
@@ -93,7 +109,9 @@ class VecEnv(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def set_attr(self, attr_name: str, value: Any, indices: VecEnvIndices = None) -> None:
+    def set_attr(
+        self, attr_name: str, value: Any, indices: VecEnvIndices = None
+    ) -> None:
         """
         Set attribute inside vectorized environments.
         :param attr_name: The name of attribute to assign new value
@@ -104,7 +122,13 @@ class VecEnv(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def env_method(self, method_name: str, *method_args, indices: VecEnvIndices = None, **method_kwargs) -> List[Any]:
+    def env_method(
+        self,
+        method_name: str,
+        *method_args,
+        indices: VecEnvIndices = None,
+        **method_kwargs,
+    ) -> List[Any]:
         """
         Call instance methods of vectorized environments.
         :param method_name: The name of the environment method to invoke.
@@ -116,7 +140,9 @@ class VecEnv(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
+    def env_is_wrapped(
+        self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None
+    ) -> List[bool]:
         """
         Check if environments are wrapped with a given wrapper.
         :param method_name: The name of the environment method to invoke.
@@ -206,6 +232,7 @@ class VecEnv(ABC):
             indices = [indices]
         return indices
 
+
 class DummyVecEnv(VecEnv):
     """
     Creates a simple vectorized wrapper for multiple environments, calling each environment in sequence on the current
@@ -225,7 +252,12 @@ class DummyVecEnv(VecEnv):
         obs_space = env.observation_space
         self.keys, shapes, dtypes = obs_space_info(obs_space)
 
-        self.buf_obs = OrderedDict([(k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k])) for k in self.keys])
+        self.buf_obs = OrderedDict(
+            [
+                (k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]))
+                for k in self.keys
+            ]
+        )
         self.buf_dones = np.zeros((self.num_envs,), dtype=bool)
         self.buf_rews = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
@@ -237,19 +269,27 @@ class DummyVecEnv(VecEnv):
 
     def step_wait(self) -> VecEnvStepReturn:
         for env_idx in range(self.num_envs):
-            obs, self.buf_rews[env_idx], self.buf_dones[env_idx], self.buf_infos[env_idx] = self.envs[env_idx].step(
-                self.actions[env_idx]
-            )
+            (
+                obs,
+                self.buf_rews[env_idx],
+                self.buf_dones[env_idx],
+                self.buf_infos[env_idx],
+            ) = self.envs[env_idx].step(self.actions[env_idx])
             if self.buf_dones[env_idx]:
                 # save final observation where user can get it, then reset
                 self.buf_infos[env_idx]["terminal_observation"] = obs
                 obs = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones), deepcopy(self.buf_infos))
+        return (
+            self._obs_from_buf(),
+            np.copy(self.buf_rews),
+            np.copy(self.buf_dones),
+            deepcopy(self.buf_infos),
+        )
 
     def seed(self, seed: Optional[int] = None) -> List[Union[None, int]]:
         if seed is None:
-            seed = np.random.randint(0, 2**32 - 1)
+            seed = np.random.randint(0, 2 ** 32 - 1)
         seeds = []
         for idx, env in enumerate(self.envs):
             seeds.append(env.seed(seed + idx))
@@ -298,18 +338,31 @@ class DummyVecEnv(VecEnv):
         target_envs = self._get_target_envs(indices)
         return [getattr(env_i, attr_name) for env_i in target_envs]
 
-    def set_attr(self, attr_name: str, value: Any, indices: VecEnvIndices = None) -> None:
+    def set_attr(
+        self, attr_name: str, value: Any, indices: VecEnvIndices = None
+    ) -> None:
         """Set attribute inside vectorized environments (see base class)."""
         target_envs = self._get_target_envs(indices)
         for env_i in target_envs:
             setattr(env_i, attr_name, value)
 
-    def env_method(self, method_name: str, *method_args, indices: VecEnvIndices = None, **method_kwargs) -> List[Any]:
+    def env_method(
+        self,
+        method_name: str,
+        *method_args,
+        indices: VecEnvIndices = None,
+        **method_kwargs,
+    ) -> List[Any]:
         """Call instance methods of vectorized environments."""
         target_envs = self._get_target_envs(indices)
-        return [getattr(env_i, method_name)(*method_args, **method_kwargs) for env_i in target_envs]
+        return [
+            getattr(env_i, method_name)(*method_args, **method_kwargs)
+            for env_i in target_envs
+        ]
 
-    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
+    def env_is_wrapped(
+        self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None
+    ) -> List[bool]:
         """Check if worker environments are wrapped with a given wrapper"""
         target_envs = self._get_target_envs(indices)
         # Import here to avoid a circular import
@@ -328,11 +381,15 @@ def copy_obs_dict(obs: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
     :param obs: a dict of numpy arrays.
     :return: a dict of copied numpy arrays.
     """
-    assert isinstance(obs, OrderedDict), f"unexpected type for observations '{type(obs)}'"
+    assert isinstance(
+        obs, OrderedDict
+    ), f"unexpected type for observations '{type(obs)}'"
     return OrderedDict([(k, np.copy(v)) for k, v in obs.items()])
 
 
-def dict_to_obs(obs_space: gym.spaces.Space, obs_dict: Dict[Any, np.ndarray]) -> VecEnvObs:
+def dict_to_obs(
+    obs_space: gym.spaces.Space, obs_dict: Dict[Any, np.ndarray]
+) -> VecEnvObs:
     """
     Convert an internal representation raw_obs into the appropriate type
     specified by space.
@@ -345,14 +402,20 @@ def dict_to_obs(obs_space: gym.spaces.Space, obs_dict: Dict[Any, np.ndarray]) ->
     if isinstance(obs_space, gym.spaces.Dict):
         return obs_dict
     elif isinstance(obs_space, gym.spaces.Tuple):
-        assert len(obs_dict) == len(obs_space.spaces), "size of observation does not match size of observation space"
+        assert len(obs_dict) == len(
+            obs_space.spaces
+        ), "size of observation does not match size of observation space"
         return tuple(obs_dict[i] for i in range(len(obs_space.spaces)))
     else:
-        assert set(obs_dict.keys()) == {None}, "multiple observation keys for unstructured observation space"
+        assert set(obs_dict.keys()) == {
+            None
+        }, "multiple observation keys for unstructured observation space"
         return obs_dict[None]
 
 
-def obs_space_info(obs_space: gym.spaces.Space) -> Tuple[List[str], Dict[Any, Tuple[int, ...]], Dict[Any, np.dtype]]:
+def obs_space_info(
+    obs_space: gym.spaces.Space,
+) -> Tuple[List[str], Dict[Any, Tuple[int, ...]], Dict[Any, np.dtype]]:
     """
     Get dict-structured information about a gym.Space.
     Dict spaces are represented directly by their dict of subspaces.
@@ -366,12 +429,16 @@ def obs_space_info(obs_space: gym.spaces.Space) -> Tuple[List[str], Dict[Any, Tu
     """
     check_for_nested_spaces(obs_space)
     if isinstance(obs_space, gym.spaces.Dict):
-        assert isinstance(obs_space.spaces, OrderedDict), "Dict space must have ordered subspaces"
+        assert isinstance(
+            obs_space.spaces, OrderedDict
+        ), "Dict space must have ordered subspaces"
         subspaces = obs_space.spaces
     elif isinstance(obs_space, gym.spaces.Tuple):
         subspaces = {i: space for i, space in enumerate(obs_space.spaces)}
     else:
-        assert not hasattr(obs_space, "spaces"), f"Unsupported structured space '{type(obs_space)}'"
+        assert not hasattr(
+            obs_space, "spaces"
+        ), f"Unsupported structured space '{type(obs_space)}'"
         subspaces = {None: obs_space}
     keys = []
     shapes = {}
@@ -391,7 +458,11 @@ def check_for_nested_spaces(obs_space: spaces.Space):
     :return:
     """
     if isinstance(obs_space, (spaces.Dict, spaces.Tuple)):
-        sub_spaces = obs_space.spaces.values() if isinstance(obs_space, spaces.Dict) else obs_space.spaces
+        sub_spaces = (
+            obs_space.spaces.values()
+            if isinstance(obs_space, spaces.Dict)
+            else obs_space.spaces
+        )
         for sub_space in sub_spaces:
             if isinstance(sub_space, (spaces.Dict, spaces.Tuple)):
                 raise NotImplementedError(
