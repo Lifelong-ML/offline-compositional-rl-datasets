@@ -55,6 +55,8 @@ def load_multiple_datasets(base_path, dataset_type, robots, objs, obsts, tasks):
         dataset = load_single_dataset(base_path, dataset_type, robot, obj, obst, task)
         for k in KEYS:
             data_dict[k].append(dataset[k])
+            break
+        break
 
     return data_dict
 

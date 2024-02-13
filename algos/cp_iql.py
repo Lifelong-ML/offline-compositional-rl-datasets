@@ -1,16 +1,22 @@
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Dict, Any
 import numpy as np
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
+from d3rlpy.gpu import Device
 from d3rlpy.models.encoders import EncoderFactory, VectorEncoderFactory
-from d3rlpy.models.torch.encoders import Encoder, _VectorEncoder
+from d3rlpy.models.optimizers import OptimizerFactory
+from d3rlpy.models.q_functions import MeanQFunctionFactory
+from d3rlpy.models.torch.encoders import Encoder, EncoderWithAction, _VectorEncoder
 from d3rlpy.algos.iql import IQL
 from d3rlpy.algos.torch.iql_impl import IQLImpl
+from d3rlpy.algos.torch.ddpg_impl import DDPGBaseImpl
+from d3rlpy.preprocessing import ActionScaler, RewardScaler, Scaler
 
 from d3rlpy.models.torch.policies import NormalPolicy
-from d3rlpy.models.q_functions import MeanQFunctionFactory
+from d3rlpy.models.torch.q_functions.mean_q_function import ContinuousMeanQFunction
 from d3rlpy.models.torch import (
     ValueFunction,
 )
@@ -244,12 +250,19 @@ class _CompositionalEncoder(_VectorEncoder):  # type: ignore
             observation_shape (Sequence[int]): Observation shape.
             init_w (float, optional): Initial weight. Defaults to 3e-3.
         """
-        super().__init__(observation_shape, *args, **kwargs)
+        super().__init__(
+            observation_shape,
+            hidden_units=None,
+            use_batch_norm=False,
+            dropout_rate= None,
+            use_dense= False,
+            activation= nn.ReLU(),
+        )
 
         self._observation_shape = observation_shape
         self.encoder_kwargs = encoder_kwargs
         sizes = encoder_kwargs["sizes"]
-        action_dim = encoder_kwargs["action_dim"]
+        output_dim = encoder_kwargs["output_dim"]
         num_modules = encoder_kwargs["num_modules"]
         module_assignment_positions = encoder_kwargs["module_assignment_positions"]
         module_inputs = encoder_kwargs["module_inputs"]
@@ -260,7 +273,8 @@ class _CompositionalEncoder(_VectorEncoder):  # type: ignore
             input_size = len(module_inputs[j])
             sizes[j] = [input_size] + list(sizes[j])
             if j in graph_structure[-1]:
-                sizes[j] = sizes[j] + [action_dim]
+                sizes[j] = sizes[j] + [output_dim]
+
         self._feature_size = sizes[-1][-1]
 
         self.comp_mlp = CompositionalMlp(
@@ -271,7 +285,6 @@ class _CompositionalEncoder(_VectorEncoder):  # type: ignore
             interface_depths=interface_depths,
             graph_structure=graph_structure,
             init_w=init_w,
-            **kwargs,
         )
 
     def _fc_encode(self, x: torch.Tensor) -> torch.Tensor:
@@ -295,6 +308,12 @@ class CompositionalEncoder(_CompositionalEncoder, Encoder):
             torch.Tensor: Output tensor.
         """
         return self._fc_encode(x)
+
+class CompositionalEncoderWithAction(_CompositionalEncoder, EncoderWithAction):
+    def forward(self, x: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        x = torch.cat([x, action], dim=1)
+        h = self._fc_encode(x)
+        return h
 
 
 class CompositionalNonSquashedNormalPolicy(NormalPolicy):
@@ -343,7 +362,7 @@ def create_non_squashed_normal_policy(
     )
 
 
-class CompositionalIQLImpl(IQLImpl):
+class CompositionalIQLImpl(IQLImpl, DDPGBaseImpl):
     """Compose IQL implementation class for d3rlpy."""
 
     _policy: Optional[CompositionalNonSquashedNormalPolicy]
@@ -352,25 +371,52 @@ class CompositionalIQLImpl(IQLImpl):
     _max_weight: float
     _value_encoder_factory: EncoderFactory
     _value_func: Optional[ValueFunction]
-
+    
     def __init__(
         self,
+        observation_shape: Sequence[int],
+        action_size: int,
+        actor_learning_rate: float,
+        critic_learning_rate: float,
+        actor_optim_factory: OptimizerFactory,
+        critic_optim_factory: OptimizerFactory,
+        actor_encoder_factory: EncoderFactory,
+        critic_encoder_factory: EncoderFactory,
+        value_encoder_factory: EncoderFactory,
+        gamma: float,
+        tau: float,
+        n_critics: int,
         expectile: float,
         weight_temp: float,
         max_weight: float,
-        value_encoder_factory: EncoderFactory,
-        *args,  # type: ignore
-        **kwargs,  # type: ignore
+        use_gpu: Optional[Device],
+        scaler: Optional[Scaler],
+        action_scaler: Optional[ActionScaler],
+        reward_scaler: Optional[RewardScaler],
     ):
-        """Simply overwrites the Q function factory."""
-        super().__init__(
-            expectile=expectile,
-            weight_temp=weight_temp,
-            max_weight=max_weight,
-            value_encoder_factory=value_encoder_factory,
-            *args,
-            **kwargs,
+        DDPGBaseImpl.__init__(self,
+            observation_shape=observation_shape,
+            action_size=action_size,
+            actor_learning_rate=actor_learning_rate,
+            critic_learning_rate=critic_learning_rate,
+            actor_optim_factory=actor_optim_factory,
+            critic_optim_factory=critic_optim_factory,
+            actor_encoder_factory=actor_encoder_factory,
+            critic_encoder_factory=critic_encoder_factory,
+            q_func_factory=CompositionalMeanQFunctionFactory(),
+            gamma=gamma,
+            tau=tau,
+            n_critics=n_critics,
+            use_gpu=use_gpu,
+            scaler=scaler,
+            action_scaler=action_scaler,
+            reward_scaler=reward_scaler,
         )
+        self._expectile = expectile
+        self._weight_temp = weight_temp
+        self._max_weight = max_weight
+        self._value_encoder_factory = value_encoder_factory
+        self._value_func = None
 
     def _build_actor(self) -> None:
         """Build actor network using the compositional encoder."""
@@ -382,6 +428,27 @@ class CompositionalIQLImpl(IQLImpl):
             max_logstd=2.0,
             use_std_parameter=True,
         )
+
+    def _build_critic(self) -> None:
+        super()._build_critic()
+        self._value_func = create_compositional_value_function(
+            self._observation_shape, self._value_encoder_factory
+        )
+
+def create_compositional_value_function(
+    observation_shape: Sequence[int], encoder_factory: EncoderFactory
+) -> ValueFunction:
+    encoder = encoder_factory.create(observation_shape)
+    return CompositionalValueFunction(encoder)
+
+
+class CompositionalValueFunction(ValueFunction):
+    def __init__(self, encoder: Encoder):
+        super().__init__(encoder)
+        self._fc = nn.Identity()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self._encoder(x)
 
 
 class CompositionalIQL(IQL):
@@ -418,6 +485,35 @@ class CompositionalIQL(IQL):
         self._impl.build()
 
 
+class CompositionalContinuousMeanQFunction(ContinuousMeanQFunction):
+    def __init__(self, encoder: EncoderWithAction):
+        super().__init__(encoder)
+        self._fc = nn.Identity()
+
+    def forward(self, x: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x, action)
+
+
+class CompositionalMeanQFunctionFactory(MeanQFunctionFactory):
+    def create_discrete(
+        self,
+        encoder: Encoder,
+        action_size: int,
+    ):
+        raise NotImplementedError("CompositionalMeanQFunctionFactory does not support discrete action spaces")
+
+    def create_continuous(
+        self,
+        encoder: EncoderWithAction,
+    ) -> CompositionalContinuousMeanQFunction:
+        return CompositionalContinuousMeanQFunction(encoder)
+
+    def get_params(self, deep: bool = False) -> Dict[str, Any]:
+        return {
+            "share_encoder": self._share_encoder,
+        }
+
+
 class CompositionalEncoderFactory(VectorEncoderFactory):
     """Encoder factory for CompositionalEncoder."""
 
@@ -434,13 +530,36 @@ class CompositionalEncoderFactory(VectorEncoderFactory):
             observation_shape=observation_shape,
         )
 
+    def create_with_action(
+        self,
+        observation_shape: Sequence[int],
+        action_size: int,
+        discrete_action: bool = False,
+    ) -> CompositionalEncoderWithAction:
+        return CompositionalEncoderWithAction(
+            encoder_kwargs=self.encoder_kwargs,
+            observation_shape=observation_shape,
+            action_size=action_size,
+            discrete_action=discrete_action,
+        )           
 
-def create_cp_encoderfactory():
+
+def create_cp_encoderfactory(with_action=False, output_dim=None):
     obs_dim = 93
     act_dim = 8
     # fmt: off
-    observation_positions = {'object-state': np.array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13]), 'obstacle-state': np.array([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]), 'goal-state': np.array([28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]), 'object_id': np.array([45, 46, 47, 48]), 'robot_id': np.array([49, 50, 51, 52]), 'obstacle_id': np.array([53, 54, 55, 56]), 'subtask_id': np.array([57, 58, 59, 60]), 'robot0_proprio-state': np.array([61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
-       78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92])}
+    observation_positions = {
+        'object-state': np.array([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13]), 
+        'obstacle-state': np.array([14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]), 
+        'goal-state': np.array([28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44]), 
+        'object_id': np.array([45, 46, 47, 48]), 
+        'robot_id': np.array([49, 50, 51, 52]), 
+        'obstacle_id': np.array([53, 54, 55, 56]), 
+        'subtask_id': np.array([57, 58, 59, 60]), 
+        'robot0_proprio-state': np.array([61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77,
+            78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92])}
+    if with_action:
+        observation_positions["action"] = np.array([93, 94, 95, 96, 97, 98, 99, 100])
     # fmt: on
 
     sizes = ((32,), (32, 32), (64, 64, 64), (64, 64, 64))
@@ -449,18 +568,33 @@ def create_cp_encoderfactory():
         "obstacle-state",
         "object-state",
         "goal-state",
-        "robot0_proprio-state",
     ]
+    if with_action:
+        module_input_names.append(["robot0_proprio-state", "action"])
+    else:
+        module_input_names.append("robot0_proprio-state")
+
     module_assignment_positions = [observation_positions[key] for key in module_names]
-    interface_depths = [-1, 1, 2, 1]
-    graph_structure = [[0], [1, 2], [3]]
+    interface_depths = [-1, 1, 2, 3]
+    graph_structure = [[0], [1], [2], [3]]
     num_modules = [len(onehot_pos) for onehot_pos in module_assignment_positions]
-    module_inputs = [observation_positions[key] for key in module_input_names]
+
+    module_inputs = []
+    for key in module_input_names:
+        if isinstance(key, list):
+            # concatenate the inputs
+            module_inputs.append(
+                np.concatenate([observation_positions[k] for k in key], axis=0)
+            )
+        else:
+            module_inputs.append(observation_positions[key])
+
+    # module_inputs = [observation_positions[key]  for key in module_input_names]
 
     encoder_kwargs = {
         "sizes": sizes,
         "obs_dim": obs_dim,
-        "action_dim": act_dim,
+        "output_dim": output_dim if output_dim is not None else act_dim,
         "num_modules": num_modules,
         "module_assignment_positions": module_assignment_positions,
         "module_inputs": module_inputs,

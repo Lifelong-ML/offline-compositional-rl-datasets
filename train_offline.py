@@ -122,18 +122,21 @@ def train_algo(exp_name, dataset, algo, run_kwargs):
     if algo == "bc":
         trainer = d3rlpy.algos.BC(
             **run_kwargs["trainer_kwargs"],
-            use_gpu=True if DEVICE == "cuda:0" else False,    
+            use_gpu=True if DEVICE == "cuda:0" else False,
         )
     elif algo == "cql":
-        trainer = d3rlpy.algos.CQL(**run_kwargs["trainer_kwargs"],
+        trainer = d3rlpy.algos.CQL(
+            **run_kwargs["trainer_kwargs"],
             use_gpu=True if DEVICE == "cuda:0" else False,
         )
     elif algo == "iql":
-        trainer = d3rlpy.algos.IQL(**run_kwargs["trainer_kwargs"],
+        trainer = d3rlpy.algos.IQL(
+            **run_kwargs["trainer_kwargs"],
             use_gpu=True if DEVICE == "cuda:0" else False,
         )
     elif algo == "cp_iql":
-        trainer = CompositionalIQL(**run_kwargs["trainer_kwargs"],
+        trainer = CompositionalIQL(
+            **run_kwargs["trainer_kwargs"],
             use_gpu=True if DEVICE == "cuda:0" else False,
         )
     else:
@@ -141,12 +144,15 @@ def train_algo(exp_name, dataset, algo, run_kwargs):
 
     trainer.fit(
         dataset,
-        n_steps_per_epoch=1000,
-        n_steps=300000,
+        n_steps_per_epoch=1,
+        n_steps=1,
         experiment_name=exp_name,
         eval_episodes=dataset,
         **run_kwargs["fit_kwargs"],
     )
+    print(trainer._impl._policy)
+    print(vars(trainer._impl))
+    
 
 
 @hydra.main(config_path="_configs", config_name="offline")
@@ -214,6 +220,12 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "actor_encoder_factory"
         ] = create_cp_encoderfactory()
+        run_kwargs["trainer_kwargs"][
+            "critic_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
+        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = create_cp_encoderfactory(
+            with_action=False, output_dim=1
+        )
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
     train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs)
