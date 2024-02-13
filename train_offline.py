@@ -144,8 +144,8 @@ def train_algo(exp_name, dataset, algo, run_kwargs):
 
     trainer.fit(
         dataset,
-        n_steps_per_epoch=1,
-        n_steps=1,
+        n_steps_per_epoch=1000,
+        n_steps=300000,
         experiment_name=exp_name,
         eval_episodes=dataset,
         **run_kwargs["fit_kwargs"],
