@@ -100,7 +100,7 @@ def dictlist_to_flatlists(dictlist):
 
     observations = np.concatenate(observations, axis=0, dtype=np.float32)
     actions = np.concatenate(actions, axis=0, dtype=np.float32)
-    rewards = np.concatenate(rewards, axis=0, dtype=np.float32)
+    rewards = np.concatenate(rewards, axis=0, dtype=np.float16)
     terminals = np.concatenate(terminals, axis=0, dtype=np.uint8)
     timeouts = np.concatenate(timeouts, axis=0, dtype=np.uint8)
 
