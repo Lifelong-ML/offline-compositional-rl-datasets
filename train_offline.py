@@ -60,7 +60,6 @@ def get_datasets(base_path, task_list, dataset_type):
             assert key in data_dict, "Dataset is missing key %s" % key
 
         dataset_list.append(data_dict)
-        break
 
     dataset_list = np.array(dataset_list)
     return dataset_list
@@ -217,12 +216,12 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "actor_encoder_factory"
         ] = create_cp_encoderfactory()
-        run_kwargs["trainer_kwargs"][
-            "critic_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
-        run_kwargs["trainer_kwargs"][
-            "value_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
+        run_kwargs["trainer_kwargs"]["critic_encoder_factory"] = (
+            create_cp_encoderfactory(with_action=True, output_dim=1)
+        )
+        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = (
+            create_cp_encoderfactory(with_action=False, output_dim=1)
+        )
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
     train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs)
