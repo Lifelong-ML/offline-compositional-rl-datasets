@@ -34,6 +34,7 @@ def get_datasets(base_path, task_list, dataset_type):
     terminals = np.zeros((num_tasks * 1000000,), dtype=np.uint8)
     timeouts = np.zeros((num_tasks * 1000000,), dtype=np.uint8)
 
+    logger.info(f"Loading {dataset_type} datafiles")
     for i, task in enumerate(tqdm(task_list, desc="Load task datafiles")):
         robot, obj, obst, subtask = task
         h5path = os.path.join(
