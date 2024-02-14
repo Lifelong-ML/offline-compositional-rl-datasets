@@ -149,7 +149,7 @@ def main(cfg):
         expert_observations, expert_actions, expert_rewards, expert_terminals, expert_timeouts = get_datasets(
             data_path,
             expert_task_list,
-            cfg.dataset.type,
+            "expert",
         )
         observations = np.concatenate([observations, expert_observations])
         actions = np.concatenate([actions, expert_actions])
