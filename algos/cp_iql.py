@@ -28,6 +28,7 @@ from d3rlpy.models.builders import (
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+
 def fanin_init(tensor):
     """Initialize the weights of a layer with fan-in initialization.
 
