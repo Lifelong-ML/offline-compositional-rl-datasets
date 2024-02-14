@@ -115,20 +115,19 @@ def main(cfg):
         cfg.dataset.holdout_elem,
         cfg.dataset.seed,
     )
-    task_list = (
-        train_task_list + expert_task_list if expert_task_list else train_task_list
-    )
-
+    
     if cfg.dataset.partial.use:
         if cfg.dataset.split == "compositional":
             logger.warning(
                 "Careful, you specified compositional training but partial loading. "
                 + "You may not get any expert tasks."
             )
-        task_list = task_list + test_task_list
+        task_list = train_task_list + test_task_list
         task_list, _ = get_partial_task_list(
             task_list, cfg.dataset.partial.remove_elems, cfg.dataset.partial.n_tasks
         )
+    else:
+        task_list = train_task_list
     logger.info(f"Training on {len(task_list)} tasks")
     logger.info(f"Task list contains these elements: {np.unique}")
     num_tasks = len(task_list)
@@ -139,12 +138,25 @@ def main(cfg):
         if os.path.isabs(cfg.dataset.dir)
         else os.path.join(get_original_cwd(), cfg.dataset.dir)
     )
+
     observations, actions, rewards, terminals, timeouts = get_datasets(
         data_path,
         task_list,
         cfg.dataset.type,
     )
-
+    if expert_task_list:
+        expert_observations, expert_actions, expert_rewards, expert_terminals, expert_timeouts = get_datasets(
+            data_path,
+            expert_task_list,
+            cfg.dataset.type,
+        )
+        observations = np.concatenate([observations, expert_observations])
+        actions = np.concatenate([actions, expert_actions])
+        rewards = np.concatenate([rewards, expert_rewards])
+        terminals = np.concatenate([terminals, expert_terminals])
+        timeouts = np.concatenate([timeouts, expert_timeouts])
+        logger.info(f"Added {len(expert_task_list)} expert tasks to the dataset")
+        
     mdp_dataset = d3rlpy.dataset.MDPDataset(
         observations=observations,
         actions=actions,
