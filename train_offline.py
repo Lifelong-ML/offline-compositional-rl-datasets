@@ -58,7 +58,7 @@ def get_datasets(base_path, task_list, dataset_type):
             rewards[i * 1000000 : (i + 1) * 1000000] = dataset_file["rewards"][:]
             terminals[i * 1000000 : (i + 1) * 1000000] = dataset_file["terminals"][:]
 
-            # timeouts should not happen when terminal, so set all timeouts 
+            # timeouts should not happen when terminal, so set all timeouts
             # where terminal == 1 to 0
             timeouts[i * 1000000 : (i + 1) * 1000000] = dataset_file["timeouts"][:]
             timeouts[i * 1000000 : (i + 1) * 1000000][
@@ -116,7 +116,7 @@ def main(cfg):
         cfg.dataset.holdout_elem,
         cfg.dataset.seed,
     )
-    
+
     if cfg.dataset.partial.use:
         if cfg.dataset.split == "compositional":
             logger.warning(
@@ -130,7 +130,7 @@ def main(cfg):
     else:
         task_list = train_task_list
     logger.info(f"Training on {len(task_list)} tasks")
-    logger.info(f"Task list contains these elements: {np.unique}")
+    logger.info(f"Task list contains these elements: {np.unique(task_list, axis=0)}")
     num_tasks = len(task_list)
 
     # check if data path is absolute, else use get_original_cwd()
@@ -146,7 +146,13 @@ def main(cfg):
         cfg.dataset.type,
     )
     if expert_task_list:
-        expert_observations, expert_actions, expert_rewards, expert_terminals, expert_timeouts = get_datasets(
+        (
+            expert_observations,
+            expert_actions,
+            expert_rewards,
+            expert_terminals,
+            expert_timeouts,
+        ) = get_datasets(
             data_path,
             expert_task_list,
             "expert",
@@ -157,13 +163,13 @@ def main(cfg):
         terminals = np.concatenate([terminals, expert_terminals])
         timeouts = np.concatenate([timeouts, expert_timeouts])
         logger.info(f"Added {len(expert_task_list)} expert tasks to the dataset")
-        
+
     mdp_dataset = d3rlpy.dataset.MDPDataset(
         observations=observations,
         actions=actions,
         rewards=rewards,
         terminals=terminals,
-        episode_terminals=timeouts
+        episode_terminals=timeouts,
     )
 
     run_kwargs = {
@@ -179,12 +185,12 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "actor_encoder_factory"
         ] = create_cp_encoderfactory()
-        run_kwargs["trainer_kwargs"][
-            "critic_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
-        run_kwargs["trainer_kwargs"][
-            "value_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
+        run_kwargs["trainer_kwargs"]["critic_encoder_factory"] = (
+            create_cp_encoderfactory(with_action=True, output_dim=1)
+        )
+        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = (
+            create_cp_encoderfactory(with_action=False, output_dim=1)
+        )
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
     train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs)
