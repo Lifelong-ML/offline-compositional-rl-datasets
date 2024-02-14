@@ -56,7 +56,13 @@ def get_datasets(base_path, task_list, dataset_type):
             actions[i * 1000000 : (i + 1) * 1000000] = dataset_file["actions"][:]
             rewards[i * 1000000 : (i + 1) * 1000000] = dataset_file["rewards"][:]
             terminals[i * 1000000 : (i + 1) * 1000000] = dataset_file["terminals"][:]
+
+            # timeouts should not happen when terminal, so set all timeouts 
+            # where terminal == 1 to 0
             timeouts[i * 1000000 : (i + 1) * 1000000] = dataset_file["timeouts"][:]
+            timeouts[i * 1000000 : (i + 1) * 1000000][
+                terminals[i * 1000000 : (i + 1) * 1000000] == 1
+            ] = 0
 
     return observations, actions, rewards, terminals, timeouts
 
@@ -144,7 +150,7 @@ def main(cfg):
         actions=actions,
         rewards=rewards,
         terminals=terminals,
-        episode_terminals=np.logical_or(terminals, timeouts),
+        episode_terminals=timeouts
     )
 
     run_kwargs = {
