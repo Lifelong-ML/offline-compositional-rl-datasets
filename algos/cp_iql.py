@@ -26,6 +26,8 @@ from d3rlpy.models.builders import (
 )
 
 
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+
 def fanin_init(tensor):
     """Initialize the weights of a layer with fan-in initialization.
 
@@ -180,7 +182,6 @@ class CompositionalMlp(nn.Module):
 
         if return_preactivations:
             raise NotImplementedError("TODO: implement return preactivations")
-        device = "cuda"
         x = None
         for graph_depth in range(
             len(self.graph_structure)
@@ -199,14 +200,14 @@ class CompositionalMlp(nn.Module):
                     )
                 else:
                     x_post_tmp = torch.empty(input_val.shape[0], self.sizes[j][-1]).to(
-                        device
+                        DEVICE
                     )
                     x_pre = input_val[:, self.module_inputs[j]]
                     onehot = input_val[:, self.module_assignment_positions[j]]
                     module_indices = onehot.nonzero(as_tuple=True)
                     assert (
                         module_indices[0]
-                        == torch.arange(module_indices[0].shape[0]).to(device)
+                        == torch.arange(module_indices[0].shape[0]).to(DEVICE)
                     ).all()
                     module_indices_1 = module_indices[1]
                     for module_idx in range(self.num_modules[j]):
