@@ -129,10 +129,12 @@ def main(cfg):
         )
     else:
         task_list = train_task_list
-    logger.info(f"Training on {len(task_list)} tasks")
     logger.info(f"Task list contains these elements: {np.unique(task_list, axis=0)}")
     num_tasks = len(task_list)
+    if expert_task_list:
+        num_tasks += len(expert_task_list)
 
+    logger.info(f"Training on {num_tasks} tasks")
     # check if data path is absolute, else use get_original_cwd()
     data_path = (
         cfg.dataset.dir
@@ -145,6 +147,8 @@ def main(cfg):
         task_list,
         cfg.dataset.type,
     )
+
+    logger.info(f"Added {len(task_list)}tasks to the dataset")
     if expert_task_list:
         (
             expert_observations,
