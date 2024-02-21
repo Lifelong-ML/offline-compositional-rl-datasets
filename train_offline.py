@@ -14,7 +14,6 @@ from hydra.utils import get_original_cwd
 from utils.data_utils import get_task_list, get_partial_task_list
 from utils.model_utils import (
     try_get_load_path,
-    load_model,
     create_trainer,
     load_latest_model_from_path,
 )

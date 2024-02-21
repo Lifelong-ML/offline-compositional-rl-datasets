@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 # fmt: on
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 def create_trainer(algo, trainer_kwargs):
     if algo == "bc":
@@ -48,8 +48,9 @@ def load_model(trainer, load_path, dataset=None, env=None):
         trainer.build_with_env(env)
     else:
         raise ValueError("Need either dataset or env to build model")
-    
+
     trainer.load_model(load_path)
+
     return trainer
 
 def load_latest_model_from_path(trainer, load_path, algo, dataset=None, env=None):
@@ -65,13 +66,19 @@ def load_latest_model_from_path(trainer, load_path, algo, dataset=None, env=None
     paths = glob(f"{load_path}/d3rlpy_logs/**")
     logger.info(f"Found {len(paths)} paths that might contain models")
     model_paths = []
+    subpath_contains_model = False
     for path in paths:
         sub_paths = glob(f"{path}/**")
         sub_model_paths = [p for p in sub_paths if "model_" in p]
-        assert len(sub_model_paths) > 0, f"Path {path} does not contain any models"
+        if len(sub_model_paths) > 0:
+            subpath_contains_model = True
         model_paths.extend(
             sub_model_paths
         )
+    if not subpath_contains_model:
+        raise ValueError(f"Path {load_path} does not contain any models")
+    logger.info(f"Found {len(model_paths)} models in the paths")
+
     model_path = sorted(
         model_paths, key=lambda x: int(x.split("/")[-1].split("_")[-1].split(".")[0])
     )[-1]
