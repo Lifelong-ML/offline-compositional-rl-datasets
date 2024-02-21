@@ -115,18 +115,16 @@ def main(cfg):
     )
     _, model_path = get_latest_model_path(load_path)
     logger.info(f"Attempting to load model from {model_path} for {cfg.algo}")
-    
+
     trainer_kwargs = {}
     if cfg.algo == "cp_iql":
-        trainer_kwargs[
-            "actor_encoder_factory"
-        ] = create_cp_encoderfactory()
-        trainer_kwargs[
-            "critic_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
-        trainer_kwargs[
-            "value_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
+        trainer_kwargs["actor_encoder_factory"] = create_cp_encoderfactory()
+        trainer_kwargs["critic_encoder_factory"] = create_cp_encoderfactory(
+            with_action=True, output_dim=1
+        )
+        trainer_kwargs["value_encoder_factory"] = create_cp_encoderfactory(
+            with_action=False, output_dim=1
+        )
 
     trainer = create_trainer(cfg.algo, trainer_kwargs)
     trainer = load_model(trainer, model_path, env=env)
