@@ -11,7 +11,11 @@ from composuite import make
 import torch
 
 from utils.data_utils import get_task_list, get_partial_task_list
-from utils.model_utils import load_latest_model_from_path, create_trainer, try_get_load_path
+from utils.model_utils import (
+    load_latest_model_from_path,
+    create_trainer,
+    try_get_load_path,
+)
 
 # fmt: off
 import logging
@@ -40,7 +44,12 @@ def main(cfg):
         else os.path.join(get_original_cwd(), cfg.base_path)
     )
     path = os.path.join(
-        cfg.base_path, cfg.dataset.type, cfg.dataset.split, cfg.exp, cfg.algo, str(cfg.seed)
+        cfg.base_path,
+        cfg.dataset.type,
+        cfg.dataset.split,
+        cfg.exp,
+        cfg.algo,
+        str(cfg.seed),
     )
     logger.info(f"Finetuning from {path}")
 
@@ -52,14 +61,18 @@ def main(cfg):
 
     # load the task list
     _, train_task_list, expert_task_list, test_task_list = get_task_list(
-        cfg.dataset.task_list_path if os.path.isabs(cfg.dataset.task_list_path) else os.path.join(get_original_cwd(), cfg.dataset.task_list_path),
+        cfg.dataset.task_list_path
+        if os.path.isabs(cfg.dataset.task_list_path)
+        else os.path.join(get_original_cwd(), cfg.dataset.task_list_path),
         cfg.dataset.type,
         cfg.dataset.split,
         cfg.dataset.holdout_elem,
         cfg.seed,
     )
-    logger.info(f"Found train task list of length {len(train_task_list)} and test task list of length {len(test_task_list)}")
-    if expert_task_list:    
+    logger.info(
+        f"Found train task list of length {len(train_task_list)} and test task list of length {len(test_task_list)}"
+    )
+    if expert_task_list:
         logger.info(f"Found expert task list of length {len(expert_task_list)}")
 
     if cfg.dataset.partial.use:
@@ -92,7 +105,12 @@ def main(cfg):
 
     trainer = create_trainer(cfg.algo, {})
     load_path = try_get_load_path(
-        os.path.join(get_original_cwd(), cfg.base_path), cfg.dataset.type, cfg.dataset.split, cfg.exp, cfg.algo, cfg.dataset.seed
+        os.path.join(get_original_cwd(), cfg.base_path),
+        cfg.dataset.type,
+        cfg.dataset.split,
+        cfg.exp,
+        cfg.algo,
+        cfg.dataset.seed,
     )
     _, trainer = load_latest_model_from_path(trainer, load_path, cfg.algo, env=env)
     logger.info(f"Loaded model from {load_path} for {cfg.algo}")

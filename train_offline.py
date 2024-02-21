@@ -12,7 +12,12 @@ import hydra
 from hydra.utils import get_original_cwd
 
 from utils.data_utils import get_task_list, get_partial_task_list
-from utils.model_utils import try_get_load_path, load_model, create_trainer, load_latest_model_from_path
+from utils.model_utils import (
+    try_get_load_path,
+    load_model,
+    create_trainer,
+    load_latest_model_from_path,
+)
 from algos.cp_iql import CompositionalIQL, create_cp_encoderfactory
 
 from torch.cuda import is_available as cuda_available
@@ -73,7 +78,9 @@ def get_datasets(base_path, task_list, dataset_type):
 def train_algo(exp_name, dataset, algo, run_kwargs, load_path=None):
     trainer = create_trainer(algo, run_kwargs["trainer_kwargs"])
     if load_path != "None" and load_path:
-        latest_step, trainer  = load_latest_model_from_path(trainer, load_path, algo, dataset)
+        latest_step, trainer = load_latest_model_from_path(
+            trainer, load_path, algo, dataset
+        )
         logger.info(f"Loaded model from {load_path} for {algo}")
     else:
         latest_step = 0
@@ -94,11 +101,17 @@ def train_algo(exp_name, dataset, algo, run_kwargs, load_path=None):
         **run_kwargs["fit_kwargs"],
     )
 
+
 @hydra.main(config_path="_configs", config_name="offline")
 def main(cfg):
     if cfg.reload:
         cfg.load_path = try_get_load_path(
-            os.path.join(get_original_cwd(), "./_offline_training"), cfg.dataset.type, cfg.dataset.split, cfg.exp, cfg.algo, cfg.dataset.seed
+            os.path.join(get_original_cwd(), "./_offline_training"),
+            cfg.dataset.type,
+            cfg.dataset.split,
+            cfg.exp,
+            cfg.algo,
+            cfg.dataset.seed,
         )
 
     task_list_path = (
@@ -186,12 +199,12 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "actor_encoder_factory"
         ] = create_cp_encoderfactory()
-        run_kwargs["trainer_kwargs"]["critic_encoder_factory"] = (
-            create_cp_encoderfactory(with_action=True, output_dim=1)
-        )
-        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = (
-            create_cp_encoderfactory(with_action=False, output_dim=1)
-        )
+        run_kwargs["trainer_kwargs"][
+            "critic_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
+        run_kwargs["trainer_kwargs"][
+            "value_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
     train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs, cfg.load_path)
