@@ -2,6 +2,8 @@ defaults:
     - _self_
 
 exp: full
+load_path: None
+reload: False
 
 dataset:
   dir: "/data/CompoSuite-offline" # TO SET
