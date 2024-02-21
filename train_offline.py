@@ -15,9 +15,10 @@ from utils.data_utils import get_task_list, get_partial_task_list
 from utils.model_utils import (
     try_get_load_path,
     create_trainer,
-    load_latest_model_from_path,
+    get_latest_model_path,
+    load_model,
 )
-from algos.cp_iql import CompositionalIQL, create_cp_encoderfactory
+from algos.cp_iql import create_cp_encoderfactory
 
 from torch.cuda import is_available as cuda_available
 
@@ -77,10 +78,10 @@ def get_datasets(base_path, task_list, dataset_type):
 def train_algo(exp_name, dataset, algo, run_kwargs, load_path=None):
     trainer = create_trainer(algo, run_kwargs["trainer_kwargs"])
     if load_path != "None" and load_path:
-        latest_step, trainer = load_latest_model_from_path(
-            trainer, load_path, algo, dataset
-        )
-        logger.info(f"Loaded model from {load_path} for {algo}")
+        latest_step, model_path = get_latest_model_path(load_path)
+        logger.info(f"Attempting to load model from {model_path} for {algo}")
+        trainer = load_model(trainer, model_path, dataset)
+        logger.info(f"Loaded model from {model_path} for {algo}")
     else:
         latest_step = 0
         logger.info(f"No model loaded for {algo}, starting from scratch")

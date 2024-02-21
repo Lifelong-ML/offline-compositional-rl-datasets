@@ -12,10 +12,12 @@ import torch
 
 from utils.data_utils import get_task_list, get_partial_task_list
 from utils.model_utils import (
-    load_latest_model_from_path,
+    load_model,
+    get_latest_model_path,
     create_trainer,
     try_get_load_path,
 )
+from algos.cp_iql import create_cp_encoderfactory
 
 # fmt: off
 import logging
@@ -103,7 +105,6 @@ def main(cfg):
     env = make(**subtask_kwargs, **GLOBAL_SUBTASK_KWARGS)
     logger.info(f"Environment created: {env}")
 
-    trainer = create_trainer(cfg.algo, {})
     load_path = try_get_load_path(
         os.path.join(get_original_cwd(), cfg.base_path),
         cfg.dataset.type,
@@ -112,8 +113,24 @@ def main(cfg):
         cfg.algo,
         cfg.dataset.seed,
     )
-    _, trainer = load_latest_model_from_path(trainer, load_path, cfg.algo, env=env)
-    logger.info(f"Loaded model from {load_path} for {cfg.algo}")
+    _, model_path = get_latest_model_path(load_path)
+    logger.info(f"Attempting to load model from {model_path} for {cfg.algo}")
+    
+    trainer_kwargs = {}
+    if cfg.algo == "cp_iql":
+        trainer_kwargs[
+            "actor_encoder_factory"
+        ] = create_cp_encoderfactory()
+        trainer_kwargs[
+            "critic_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
+        trainer_kwargs[
+            "value_encoder_factory"
+        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
+
+    trainer = create_trainer(cfg.algo, trainer_kwargs)
+    trainer = load_model(trainer, model_path, env=env)
+    logger.info(f"Loaded model from {model_path} for {cfg.algo}")
 
     # finetune the model
     buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=500000, env=env)

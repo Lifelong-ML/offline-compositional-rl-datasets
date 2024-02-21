@@ -53,7 +53,7 @@ def load_model(trainer, load_path, dataset=None, env=None):
 
     return trainer
 
-def load_latest_model_from_path(trainer, load_path, algo, dataset=None, env=None):
+def get_latest_model_path(load_path):
     # check if load path is absolute, else use get_original_cwd()
     load_path = (
         load_path
@@ -82,12 +82,9 @@ def load_latest_model_from_path(trainer, load_path, algo, dataset=None, env=None
     model_path = sorted(
         model_paths, key=lambda x: int(x.split("/")[-1].split("_")[-1].split(".")[0])
     )[-1]
-    logger.info(f"Attempting to load model from {model_path} for {algo}")
-    trainer = load_model(trainer, model_path, dataset, env)
-    logger.info(f"Loaded model from {model_path} for {algo}")
     latest_step = int(model_path.split("/")[-1].split("_")[-1].split(".")[0])
 
-    return latest_step, trainer
+    return latest_step, model_path
 
 def try_get_load_path(base_path, dataset_type, split, exp, algo, seed):
     logger.info(
