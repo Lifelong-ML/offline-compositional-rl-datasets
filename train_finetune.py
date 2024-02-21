@@ -51,7 +51,7 @@ def main(cfg):
         cfg.dataset.split,
         cfg.exp,
         cfg.algo,
-        str(cfg.seed),
+        str(cfg.dataset.seed),
     )
     logger.info(f"Finetuning from {path}")
 
@@ -69,7 +69,7 @@ def main(cfg):
         cfg.dataset.type,
         cfg.dataset.split,
         cfg.dataset.holdout_elem,
-        cfg.seed,
+        cfg.dataset.seed,
     )
     logger.info(
         f"Found train task list of length {len(train_task_list)} and test task list of length {len(test_task_list)}"
@@ -89,9 +89,7 @@ def main(cfg):
         )
 
     # sample a random test_task
-    np.random.seed(cfg.seed)
-    task_idx = np.random.randint(0, len(test_task_list))
-    robot, obj, obst, subtask = test_task_list[task_idx]
+    robot, obj, obst, subtask = test_task_list[cfg.task_id]
     logger.info(f"Finetuning on {robot}, {obj}, {obst}, {subtask}")
 
     # create the environment
@@ -139,7 +137,6 @@ def main(cfg):
         n_steps=cfg.n_steps,
         n_steps_per_epoch=500,
         update_start_step=cfg.update_start_step,
-        with_timestamp=True,
         save_interval=10,
     )
 

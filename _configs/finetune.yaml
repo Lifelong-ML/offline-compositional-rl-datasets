@@ -4,9 +4,9 @@ defaults:
 exp: full
 base_path: _offline_training
 algo: iql
-seed: 0
 update_start_step: 20000
 n_steps: 500000
+task_id: 0
 
 dataset:
   dir: "/data/CompoSuite-offline" # TO SET
@@ -22,4 +22,4 @@ dataset:
 
 hydra:
   run:
-    dir: ./_finetune_training/${dataset.type}/${dataset.split}/${exp}/${algo}/${update_start_step}/${seed}
+    dir: ./_finetune_training/${dataset.type}/${dataset.split}/${exp}/${algo}/${dataset.seed}/${update_start_step}/task_${task_id}
