@@ -37,6 +37,25 @@ GLOBAL_SUBTASK_KWARGS = {
 }
 
 
+def modified_reset(gym_env):
+    original_reset = gym_env.reset
+    
+    def reset_wrapper(*args, **kwargs):
+        obs, _ = original_reset(*args, **kwargs)
+        return obs
+    
+    gym_env.reset = reset_wrapper
+
+def modified_step(gym_env):
+    original_step = gym_env.step
+
+    def step_wrapper(*args, **kwargs):
+        obs, rew, done, _, info = original_step(*args, **kwargs)
+        return obs, rew, done, info
+    
+    gym_env.step = step_wrapper
+
+
 @hydra.main(config_path="_configs", config_name="finetune")
 def main(cfg):
     # ${dataset.type}/${dataset.split}/${algo}/${dataset.seed}
@@ -101,6 +120,8 @@ def main(cfg):
     }
 
     env = make(**subtask_kwargs, **GLOBAL_SUBTASK_KWARGS)
+    modified_reset(env)
+    modified_step(env)
     logger.info(f"Environment created: {env}")
 
     load_path = try_get_load_path(
