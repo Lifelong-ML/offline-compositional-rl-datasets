@@ -36,11 +36,15 @@ GLOBAL_SUBTASK_KWARGS = {
     "env_horizon": 500,
 }
 
+GLOBAL_STEP_COUNTER = 0
 
 def modified_reset(gym_env):
     original_reset = gym_env.reset
     
     def reset_wrapper(*args, **kwargs):
+        global GLOBAL_STEP_COUNTER
+        GLOBAL_STEP_COUNTER = 0
+
         obs, _ = original_reset(*args, **kwargs)
         return obs
     
@@ -50,7 +54,14 @@ def modified_step(gym_env):
     original_step = gym_env.step
 
     def step_wrapper(*args, **kwargs):
+        global GLOBAL_STEP_COUNTER
+        GLOBAL_STEP_COUNTER += 1
+        
         obs, rew, done, _, info = original_step(*args, **kwargs)
+
+        if GLOBAL_STEP_COUNTER % 500 == 0:
+            info["TimeLimit.truncated"] = True
+
         return obs, rew, done, info
     
     gym_env.step = step_wrapper
@@ -158,7 +169,7 @@ def main(cfg):
         n_steps=cfg.n_steps,
         n_steps_per_epoch=500,
         update_start_step=cfg.update_start_step,
-        save_interval=10,
+        save_interval=20,
     )
 
 
