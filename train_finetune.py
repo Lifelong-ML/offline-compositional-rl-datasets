@@ -161,7 +161,7 @@ def main(cfg):
     logger.info(f"Loaded model from {model_path} for {cfg.algo}")
 
     # finetune the model
-    buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=500000, env=env)
+    buffer = d3rlpy.online.buffers.ReplayBuffer(maxlen=cfg.n_steps, env=env)
     logger.info(f"Finetuning for {cfg.n_steps} steps")
     trainer.fit_online(
         env,
