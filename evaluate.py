@@ -186,6 +186,10 @@ def main(cfg):
             with_action=False, output_dim=1
         )
 
+    if cfg.algo == "cp_bc":
+        trainer_kwargs[
+            "encoder_factory"] = create_cp_encoderfactory()
+
     trainer = None
     # evaluate the model
     if cfg.get_train_results:

@@ -155,6 +155,10 @@ def main(cfg):
         trainer_kwargs["value_encoder_factory"] = create_cp_encoderfactory(
             with_action=False, output_dim=1
         )
+        
+    if cfg.algo == "cp_bc":
+        trainer_kwargs[
+            "encoder_factory"] = create_cp_encoderfactory()
 
     trainer = create_trainer(cfg.algo, trainer_kwargs)
     trainer = load_model(trainer, model_path, env=env)
