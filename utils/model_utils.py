@@ -3,7 +3,7 @@ from glob import glob
 
 import d3rlpy
 import torch
-from algos.cp_iql import CompositionalIQL
+from algos.cp_iql import CompositionalIQL, CompositionalBC
 
 from hydra.utils import get_original_cwd
 
@@ -18,6 +18,11 @@ DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 def create_trainer(algo, trainer_kwargs):
     if algo == "bc":
         trainer = d3rlpy.algos.BC(
+            **trainer_kwargs,
+            use_gpu=True if DEVICE == "cuda:0" else False,
+        )
+    if algo == "cp_bc":
+        trainer = CompositionalBC(
             **trainer_kwargs,
             use_gpu=True if DEVICE == "cuda:0" else False,
         )

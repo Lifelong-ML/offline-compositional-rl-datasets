@@ -69,7 +69,7 @@ def rollout_envs(env, model, num_steps: int, num_trajs: int, save_path: str):
             # Reset the envs that are done
             for j, done in enumerate(dones):
                 if done:
-                    obs[j] = env.envs[j].reset()
+                    obs[j] = env.envs[j].reset()[0]
                     
         obs = env.reset()
     return True

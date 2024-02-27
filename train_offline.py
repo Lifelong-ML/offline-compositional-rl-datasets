@@ -75,7 +75,7 @@ def get_datasets(base_path, task_list, dataset_type):
     return observations, actions, rewards, terminals, timeouts
 
 
-def train_algo(exp_name, dataset, algo, run_kwargs, load_path=None):
+def train_algo(exp_name, dataset, algo, train_steps, run_kwargs, load_path=None):
     trainer = create_trainer(algo, run_kwargs["trainer_kwargs"])
     if load_path != "None" and load_path:
         latest_step, model_path = get_latest_model_path(load_path)
@@ -86,7 +86,7 @@ def train_algo(exp_name, dataset, algo, run_kwargs, load_path=None):
         latest_step = 0
         logger.info(f"No model loaded for {algo}, starting from scratch")
 
-    n_steps = 300000 - latest_step
+    n_steps = train_steps - latest_step
     if n_steps <= 0:
         logger.info(f"Model already trained for {latest_step} steps")
         return
@@ -206,8 +206,12 @@ def main(cfg):
             "value_encoder_factory"
         ] = create_cp_encoderfactory(with_action=False, output_dim=1)
 
+    if cfg.algo == "cp_bc":
+        run_kwargs["trainer_kwargs"][
+            "encoder_factory"] = create_cp_encoderfactory()
+
     logger.info(f"Training {cfg.algo} on {exp_name}")
-    train_algo(exp_name, mdp_dataset, cfg.algo, run_kwargs, cfg.load_path)
+    train_algo(exp_name, mdp_dataset, cfg.algo, cfg.train_steps, run_kwargs, cfg.load_path)
 
 
 if __name__ == "__main__":

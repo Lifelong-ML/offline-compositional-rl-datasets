@@ -6,11 +6,11 @@ base_path: _offline_training
 algo: iql
 n_steps: 500
 n_trajs: 10
-task_id: 0
+task_id: -1
 get_train_results: True
 
 dataset:
-  dir: "/data/CompoSuite-offline" # TO SET
+  dir: "/mnt/kostas-graid/datasets/CompoSuite-offline" # TO SET
   task_list_path: "_train_test_splits"
   split: default # Options: default, compositional, holdout
   type: expert # Options: expert, medium, medium-random-subsampled, random, sac

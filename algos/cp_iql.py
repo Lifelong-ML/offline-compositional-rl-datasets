@@ -25,6 +25,8 @@ from d3rlpy.models.builders import (
     create_non_squashed_normal_policy,
 )
 
+from d3rlpy.models.torch.imitators import DeterministicRegressor
+
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -613,3 +615,86 @@ def create_cp_encoderfactory(with_action=False, output_dim=None):
     )
 
     return fac
+
+from d3rlpy.algos.bc import BC
+from d3rlpy.models.torch.imitators import DeterministicRegressor
+from d3rlpy.models.torch.policies import DeterministicPolicy, Policy
+from d3rlpy.algos.torch.bc_impl import BCImpl
+from d3rlpy.torch_utility import hard_sync
+
+class CompositionalRegressor(DeterministicRegressor):
+    def __init__(self, encoder: Encoder, action_size: int):
+        super().__init__(encoder, action_size)
+        self._fc = nn.Identity()
+
+class CompositionalBCPolicy(DeterministicPolicy):
+    def __init__(self, encoder: Encoder, action_size: int):
+        super().__init__(encoder, action_size)
+        self._fc = nn.Identity()
+
+def create_comp_deterministic_policy(
+    observation_shape: Sequence[int],
+    action_size: int,
+    encoder_factory: CompositionalEncoderFactory,
+) -> CompositionalBCPolicy:
+    encoder = encoder_factory.create(observation_shape)
+    return CompositionalBCPolicy(encoder, action_size)
+
+def create_comp_deterministic_regressor(
+    observation_shape: Sequence[int],
+    action_size: int,
+    encoder_factory: CompositionalEncoderFactory,
+) -> CompositionalRegressor:
+    encoder = encoder_factory.create(observation_shape)
+    return CompositionalRegressor(encoder, action_size)
+
+class CompositionalBC(BC):
+    def _create_impl(
+        self, observation_shape: Sequence[int], action_size: int
+    ) -> None:
+        self._impl = CompositionalBCImpl(
+            observation_shape=observation_shape,
+            action_size=action_size,
+            learning_rate=self._learning_rate,
+            optim_factory=self._optim_factory,
+            encoder_factory=self._encoder_factory,
+            policy_type=self._policy_type,
+            use_gpu=self._use_gpu,
+            scaler=self._scaler,
+            action_scaler=self._action_scaler,
+        )
+        self._impl.build()
+
+class CompositionalBCImpl(BCImpl):
+    def _build_network(self) -> None:
+        if self._policy_type == "deterministic":
+            self._imitator = create_comp_deterministic_regressor(
+                self._observation_shape,
+                self._action_size,
+                self._encoder_factory,
+            )
+        elif self._policy_type == "stochastic":
+            raise NotImplementedError("CompositionalBC does not support stochastic policies")
+        else:
+            raise ValueError("invalid policy_type: {self._policy_type}")
+
+    @property
+    def policy(self) -> Policy:
+        assert self._imitator
+
+        policy: Policy
+        if self._policy_type == "deterministic":
+            policy = create_comp_deterministic_policy(
+                self._observation_shape,
+                self._action_size,
+                self._encoder_factory,
+            )
+        elif self._policy_type == "stochastic":
+            raise NotImplementedError("CompositionalBC does not support stochastic policies")
+        else:
+            raise ValueError(f"invalid policy_type: {self._policy_type}")
+
+        # copy parameters
+        hard_sync(policy, self._imitator)
+
+        return policy

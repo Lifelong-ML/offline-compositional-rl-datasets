@@ -115,14 +115,14 @@ class DummyVecEnv(VecEnv):
 
     def step_wait(self):
         return_list = [env.step(a) for (env, a) in zip(self.envs, self.actions)]
-        obs, rews, dones, infos = map(np.array, zip(*return_list))
+        obs, rews, dones, _, infos = map(np.array, zip(*return_list))
         return obs, rews, dones, infos
 
     def seed(self, seed=None):
         raise NotImplementedError
 
     def reset(self, seed=None):
-        obs_list = [env.reset() for env in self.envs]
+        obs_list = [env.reset()[0] for env in self.envs]
         return np.array(obs_list)
 
     def close(self):
