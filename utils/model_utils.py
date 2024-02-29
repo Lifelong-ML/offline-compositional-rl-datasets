@@ -21,7 +21,7 @@ def create_trainer(algo, trainer_kwargs):
             **trainer_kwargs,
             use_gpu=True if DEVICE == "cuda:0" else False,
         )
-    if algo == "cp_bc":
+    elif algo == "cp_bc":
         trainer = CompositionalBC(
             **trainer_kwargs,
             use_gpu=True if DEVICE == "cuda:0" else False,

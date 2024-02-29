@@ -90,6 +90,8 @@ def evaluate_tasklist(task_list, trainer, model_path, algo, trainer_kwargs, n_st
     env = DummyVecEnv(env_fns)
 
     trainer = create_trainer(algo, trainer_kwargs)
+
+    logger.info(f"Attempting to load model from {model_path} for {algo}")
     trainer = load_model(trainer, model_path, env=env.envs[0])
     logger.info(f"Loaded model from {model_path} for {algo}")
 
@@ -174,7 +176,6 @@ def main(cfg):
         cfg.dataset.seed,
     )
     _, model_path = get_latest_model_path(load_path)
-    logger.info(f"Attempting to load model from {model_path} for {cfg.algo}")
 
     trainer_kwargs = {}
     if cfg.algo == "cp_iql":
