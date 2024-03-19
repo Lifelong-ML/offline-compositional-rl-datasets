@@ -21,7 +21,7 @@ Since the tasks included in the benchmark are of varying difficulty, we provide 
 
 ## Running the code
 
-To reproduce our experiments, we provide a training and evaluation file for running d3rlpy with our datasets and network architecture. Before you start, make sure to correctly set the dataset and datasplit paths in both d3rl_runner.py and d3rl_eval.py. Note that, these paths expect a pointer to a folder that has the following structure.
+To reproduce our experiments, we provide a training and evaluation file for running d3rlpy with our datasets and network architecture. Before you start, make sure to correctly set the dataset and datasplit paths in the config files in _configs of the script you are running. Note that, these paths expect a pointer to a folder that has the following structure.
 
 ├ root_data  
 │   ├ expert  
@@ -36,25 +36,23 @@ To reproduce our experiments, we provide a training and evaluation file for runn
 
 The data you can download on dryad is split by robot arm so you have to recreate the above folder structure by moving the different robot arm folders into a single folder.
 
-To train a model, navigate to off_comp_rl and exectute
+To train a model
 
 ```python
-python d3rl_runner.py --use-task-list-path
+python train_offline.py
 ```
 
 The following arguments can be used to execute specific training configurations.
 
-    --dataset-split: The split list that you would like to use. Options are "default", "compositional", "holdout"
-    --dataset-type: The difficulty of the dataset you would like to use. Options are "random", "medium", "expert", "medium-replay-subsampled"
-    --data-seed: The random seed to set. If using data split lists, this needs to be a number from 0-9.
-    --use-task-list-path: If this is not set, only a single task according to the robot, object, obstacle and objective args will be run
-    --algo: The offline algorithm to use. Options are "bc" and "iql".
-    --encoder: The policy encoder to use. Options are "default" or "compositional". "compositional" is currently only supported for algo="iql".
-    
+    dataset.split: The split list that you would like to use. Options are "default", "compositional", "holdout"
+    dataset.type: The difficulty of the dataset you would like to use. Options are "random", "medium", "expert", "medium-replay-subsampled"
+    dataset.seed: The random seed to set. If using data split lists, this needs to be a number from 0-9.
+    algo: The offline algorithm to use. Options are "bc" and "iql" or "cp_bc" and "cp_iql".
+
 Once you have trained the model, you can evaluate it using
 
 ```python
-python d3rl_eval.py --path <your_path>
+python evaluate.py
 ```
 
-again with the corresponding args set correctly as before.
+the evaluate config and args should simply be set to the same ones from training the model that is to be evaluated.

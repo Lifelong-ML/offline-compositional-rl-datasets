@@ -10,7 +10,7 @@ task_id: -1
 get_train_results: True
 
 dataset:
-  dir: "/mnt/kostas-graid/datasets/CompoSuite-offline" # TO SET
+  dir: <> # TO SET
   task_list_path: "_train_test_splits"
   split: default # Options: default, compositional, holdout
   type: expert # Options: expert, medium, medium-random-subsampled, random, sac

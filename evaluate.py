@@ -1,6 +1,5 @@
 import os
 import gc
-import numpy as np
 import hydra
 from hydra.utils import get_original_cwd
 from tqdm import tqdm
@@ -36,6 +35,7 @@ GLOBAL_SUBTASK_KWARGS = {
     "env_horizon": 500,
 }
 
+
 def rollout_envs(env, model, num_steps: int, num_trajs: int, save_path: str):
     """Rollout a fixed number of trajectories of length num_steps using
     the given model and environment.
@@ -70,11 +70,14 @@ def rollout_envs(env, model, num_steps: int, num_trajs: int, save_path: str):
             for j, done in enumerate(dones):
                 if done:
                     obs[j] = env.envs[j].reset()[0]
-                    
+
         obs = env.reset()
     return True
 
-def evaluate_tasklist(task_list, trainer, model_path, algo, trainer_kwargs, n_steps, n_trajs, save_loc):
+
+def evaluate_tasklist(
+    task_list, trainer, model_path, algo, trainer_kwargs, n_steps, n_trajs, save_loc
+):
     env_fns = [
         partial(
             make,
@@ -104,10 +107,8 @@ def evaluate_tasklist(task_list, trainer, model_path, algo, trainer_kwargs, n_st
         f.write("\n")
 
     logger.info(f"Rolling out {n_trajs} trajectories of length {n_steps}")
-    rollout_envs(
-        env, trainer, n_steps, n_trajs, save_loc
-    )
-    del(env)
+    rollout_envs(env, trainer, n_steps, n_trajs, save_loc)
+    del env
     gc.collect()
 
     return trainer
@@ -133,9 +134,11 @@ def main(cfg):
 
     # load the task list
     _, train_task_list, expert_task_list, test_task_list = get_task_list(
-        cfg.dataset.task_list_path
-        if os.path.isabs(cfg.dataset.task_list_path)
-        else os.path.join(get_original_cwd(), cfg.dataset.task_list_path),
+        (
+            cfg.dataset.task_list_path
+            if os.path.isabs(cfg.dataset.task_list_path)
+            else os.path.join(get_original_cwd(), cfg.dataset.task_list_path)
+        ),
         cfg.dataset.type,
         cfg.dataset.split,
         cfg.dataset.holdout_elem,
@@ -161,10 +164,16 @@ def main(cfg):
     if cfg.task_id != -1:
         test_task_list = [test_task_list[cfg.task_id]]
 
-    logger.info(f"After partial loading, train task list has length {len(train_task_list)}")
+    logger.info(
+        f"After partial loading, train task list has length {len(train_task_list)}"
+    )
     if expert_task_list:
-        logger.info(f"After partial loading, expert task list has length {len(expert_task_list)}")
-    logger.info(f"After partial loading, test task list has length {len(test_task_list)}")
+        logger.info(
+            f"After partial loading, expert task list has length {len(expert_task_list)}"
+        )
+    logger.info(
+        f"After partial loading, test task list has length {len(test_task_list)}"
+    )
 
     # load the model
     load_path = try_get_load_path(
@@ -188,15 +197,21 @@ def main(cfg):
         )
 
     if cfg.algo == "cp_bc":
-        trainer_kwargs[
-            "encoder_factory"] = create_cp_encoderfactory()
+        trainer_kwargs["encoder_factory"] = create_cp_encoderfactory()
 
     trainer = None
     # evaluate the model
     if cfg.get_train_results:
         logger.info("Evaluating train task list")
         trainer = evaluate_tasklist(
-            train_task_list, trainer, model_path, cfg.algo, trainer_kwargs, cfg.n_steps, cfg.n_trajs, "train_returns.csv"
+            train_task_list,
+            trainer,
+            model_path,
+            cfg.algo,
+            trainer_kwargs,
+            cfg.n_steps,
+            cfg.n_trajs,
+            "train_returns.csv",
         )
     else:
         logger.info("get_train_results is False, skipping Train evaluation")
@@ -204,14 +219,28 @@ def main(cfg):
     if expert_task_list:
         logger.info("Evaluating expert task list")
         trainer = evaluate_tasklist(
-            expert_task_list, trainer, model_path, cfg.algo, trainer_kwargs, cfg.n_steps, cfg.n_trajs, "expert_returns.csv"
+            expert_task_list,
+            trainer,
+            model_path,
+            cfg.algo,
+            trainer_kwargs,
+            cfg.n_steps,
+            cfg.n_trajs,
+            "expert_returns.csv",
         )
     else:
         logger.info("No expert task list found, skipping Expert evaluation")
 
     logger.info("Evaluating test task list")
     trainer = evaluate_tasklist(
-        test_task_list, trainer, model_path, cfg.algo, trainer_kwargs, cfg.n_steps, cfg.n_trajs, "test_returns.csv"
+        test_task_list,
+        trainer,
+        model_path,
+        cfg.algo,
+        trainer_kwargs,
+        cfg.n_steps,
+        cfg.n_trajs,
+        "test_returns.csv",
     )
 
 

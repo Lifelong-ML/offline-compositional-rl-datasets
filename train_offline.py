@@ -1,8 +1,6 @@
 import os
-import json
 import h5py
 import numpy as np
-from glob import glob
 
 from tqdm import tqdm
 
@@ -199,19 +197,20 @@ def main(cfg):
         run_kwargs["trainer_kwargs"][
             "actor_encoder_factory"
         ] = create_cp_encoderfactory()
-        run_kwargs["trainer_kwargs"][
-            "critic_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=True, output_dim=1)
-        run_kwargs["trainer_kwargs"][
-            "value_encoder_factory"
-        ] = create_cp_encoderfactory(with_action=False, output_dim=1)
+        run_kwargs["trainer_kwargs"]["critic_encoder_factory"] = (
+            create_cp_encoderfactory(with_action=True, output_dim=1)
+        )
+        run_kwargs["trainer_kwargs"]["value_encoder_factory"] = (
+            create_cp_encoderfactory(with_action=False, output_dim=1)
+        )
 
     if cfg.algo == "cp_bc":
-        run_kwargs["trainer_kwargs"][
-            "encoder_factory"] = create_cp_encoderfactory()
+        run_kwargs["trainer_kwargs"]["encoder_factory"] = create_cp_encoderfactory()
 
     logger.info(f"Training {cfg.algo} on {exp_name}")
-    train_algo(exp_name, mdp_dataset, cfg.algo, cfg.train_steps, run_kwargs, cfg.load_path)
+    train_algo(
+        exp_name, mdp_dataset, cfg.algo, cfg.train_steps, run_kwargs, cfg.load_path
+    )
 
 
 if __name__ == "__main__":

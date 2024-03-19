@@ -1,11 +1,8 @@
 import os
-import numpy as np
 import hydra
 from hydra.utils import get_original_cwd
-from glob import glob
 
 import d3rlpy
-import omegaconf
 
 from composuite import make
 import torch
@@ -38,17 +35,19 @@ GLOBAL_SUBTASK_KWARGS = {
 
 GLOBAL_STEP_COUNTER = 0
 
+
 def modified_reset(gym_env):
     original_reset = gym_env.reset
-    
+
     def reset_wrapper(*args, **kwargs):
         global GLOBAL_STEP_COUNTER
         GLOBAL_STEP_COUNTER = 0
 
         obs, _ = original_reset(*args, **kwargs)
         return obs
-    
+
     gym_env.reset = reset_wrapper
+
 
 def modified_step(gym_env):
     original_step = gym_env.step
@@ -56,14 +55,14 @@ def modified_step(gym_env):
     def step_wrapper(*args, **kwargs):
         global GLOBAL_STEP_COUNTER
         GLOBAL_STEP_COUNTER += 1
-        
+
         obs, rew, done, _, info = original_step(*args, **kwargs)
 
         if GLOBAL_STEP_COUNTER % 500 == 0:
             info["TimeLimit.truncated"] = True
 
         return obs, rew, done, info
-    
+
     gym_env.step = step_wrapper
 
 
@@ -93,9 +92,11 @@ def main(cfg):
 
     # load the task list
     _, train_task_list, expert_task_list, test_task_list = get_task_list(
-        cfg.dataset.task_list_path
-        if os.path.isabs(cfg.dataset.task_list_path)
-        else os.path.join(get_original_cwd(), cfg.dataset.task_list_path),
+        (
+            cfg.dataset.task_list_path
+            if os.path.isabs(cfg.dataset.task_list_path)
+            else os.path.join(get_original_cwd(), cfg.dataset.task_list_path)
+        ),
         cfg.dataset.type,
         cfg.dataset.split,
         cfg.dataset.holdout_elem,
@@ -155,10 +156,9 @@ def main(cfg):
         trainer_kwargs["value_encoder_factory"] = create_cp_encoderfactory(
             with_action=False, output_dim=1
         )
-        
+
     if cfg.algo == "cp_bc":
-        trainer_kwargs[
-            "encoder_factory"] = create_cp_encoderfactory()
+        trainer_kwargs["encoder_factory"] = create_cp_encoderfactory()
 
     trainer = create_trainer(cfg.algo, trainer_kwargs)
     trainer = load_model(trainer, model_path, env=env)
